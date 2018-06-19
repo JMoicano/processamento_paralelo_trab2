@@ -32,7 +32,8 @@ public class Master implements Remote {
 	
 	public Guess[] attack(byte[] ciphertext, byte[] knowntext, int subAttackSize) {
 		int attackNumber = currentAttack++;
-		pendingSubAttacks.put(attackNumber, 0);
+		int count = 0;
+		pendingSubAttacks.put(attackNumber, count);
 		for (int i = 0; i < dict_size; i+=subAttackSize) {
 			int finalwordindex = i + subAttackSize < dict_size ? i + subAttackSize : dict_size; 
 			SubAttack sa = new SubAttack(ciphertext, knowntext, i, finalwordindex - 1, attackNumber);
@@ -40,6 +41,7 @@ public class Master implements Remote {
 			try {
 				m.setObject(sa);
 				producer.send(subAttackQueue, m);
+				pendingSubAttacks.put(attackNumber, ++count);
 			} catch (JMSException e) {
 				e.printStackTrace();
 			}

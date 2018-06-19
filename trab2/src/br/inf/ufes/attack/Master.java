@@ -30,7 +30,7 @@ public class Master implements Remote {
 	
 	private static final int dict_size = 80368;
 	
-	public void attack(byte[] ciphertext, byte[] knowntext, int subAttackSize) {
+	public Guess[] attack(byte[] ciphertext, byte[] knowntext, int subAttackSize) {
 		int attackNumber = currentAttack++;
 		pendingSubAttacks.put(attackNumber, 0);
 		for (int i = 0; i < dict_size; i+=subAttackSize) {
@@ -45,7 +45,7 @@ public class Master implements Remote {
 			}
 		}
 		
-		
+		return null;
 		
 	}
 	

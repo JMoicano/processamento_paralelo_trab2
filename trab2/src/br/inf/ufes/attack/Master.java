@@ -4,36 +4,55 @@ import java.rmi.Remote;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.rmi.server.UnicastRemoteObject;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import javax.jms.JMSConsumer;
 import javax.jms.JMSContext;
 import javax.jms.JMSException;
 import javax.jms.JMSProducer;
+import javax.jms.Message;
+import javax.jms.MessageListener;
 import javax.jms.ObjectMessage;
 import javax.jms.Queue;
+import javax.jms.TextMessage;
 
 import com.sun.messaging.ConnectionConfiguration;
 
+import br.inf.ufes.ppd.Attacker;
 import br.inf.ufes.ppd.Guess;
+import br.inf.ufes.ppd.ProducerConsumer;
 import br.inf.ufes.ppd.SubAttack;
 
-public class Master implements Remote {
-	private Map<Integer, Integer> pendingSubAttacks;
+public class Master extends ProducerConsumer implements Attacker, MessageListener {
+	private Map<Integer, EncapInt> pendingSubAttacks;
+	private Map<Integer, List<Guess>> guesses;
 	private int currentAttack;
-	Queue subAttackQueue;
-	Queue guessQueue;
-	JMSContext context;
-	JMSProducer producer;
-	JMSConsumer consumer;
 	
 	private static final int dict_size = 80368;
 	
+	public Master(String host) {
+		super(host);
+		currentAttack = 0;
+		pendingSubAttacks = new HashMap<>();
+		guesses = new HashMap<>();
+		
+		consumer = context.createConsumer(guessQueue);
+		consumer.setMessageListener(this);
+	}
+	@Override
 	public Guess[] attack(byte[] ciphertext, byte[] knowntext, int subAttackSize) {
 		int attackNumber = currentAttack++;
-		int count = 0;
-		pendingSubAttacks.put(attackNumber, count);
+		EncapInt pendingSubAttack;
+		synchronized (pendingSubAttacks) {
+			pendingSubAttack = new EncapInt();
+			pendingSubAttacks.put(attackNumber, pendingSubAttack);
+		}
+		synchronized (guesses) {
+			guesses.put(attackNumber, new ArrayList<>());
+		}
 		for (int i = 0; i < dict_size; i+=subAttackSize) {
 			int finalwordindex = i + subAttackSize < dict_size ? i + subAttackSize : dict_size; 
 			SubAttack sa = new SubAttack(ciphertext, knowntext, i, finalwordindex - 1, attackNumber);
@@ -41,48 +60,73 @@ public class Master implements Remote {
 			try {
 				m.setObject(sa);
 				producer.send(subAttackQueue, m);
-				pendingSubAttacks.put(attackNumber, ++count);
+				pendingSubAttack.v++;
+				System.out.println("SubAttack #" + pendingSubAttack.v + " for Attack #" + attackNumber + " launched!");
 			} catch (JMSException e) {
 				e.printStackTrace();
 			}
 		}
 		
-		return null;
+		try {
+			synchronized (pendingSubAttack) {
+				pendingSubAttack.wait();
+			}
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		
+		Guess[] retorno;
+		synchronized (guesses) {
+			retorno = guesses.remove(attackNumber).toArray(new Guess[0]);
+		}
+		
+		return retorno;
 		
 	}
-	
-	public Master(String host) {
-		currentAttack = 0;
-		pendingSubAttacks = new HashMap<>();
+	@Override
+	public void onMessage(Message msg) {
 		try {
-			System.out.println("obtaining connection factory...");
-			com.sun.messaging.ConnectionFactory connectionFactory = new com.sun.messaging.ConnectionFactory();
+			int attackNumber = msg.getIntProperty("attackNumber");
+			if(msg instanceof ObjectMessage) {
+				Object obj = ((ObjectMessage) msg).getObject();
+				if(obj instanceof Guess) {
+					Guess g = (Guess) obj;
+					synchronized (guesses) {
+						guesses.get(attackNumber).add(g);
+					}
+				}
 			
-			connectionFactory.setProperty(ConnectionConfiguration.imqAddressList,host+":7676");
-			
-			System.out.println("obtained connection factory.");
-			
-			System.out.println("obtaining queues...");
-			subAttackQueue = new com.sun.messaging.Queue("SubAttackQueue");
-			guessQueue = new com.sun.messaging.Queue("GuessQueue");
-			System.out.println("obtained queues.");
-	
-			context = connectionFactory.createContext();
-			producer = context.createProducer();
-			consumer = context.createConsumer(guessQueue);
-			
+			} else {
+				
+				EncapInt pendingSubAttack;
+				synchronized (pendingSubAttacks) {
+					pendingSubAttack = pendingSubAttacks.get(attackNumber);
+				}
+				synchronized (pendingSubAttack) {
+					pendingSubAttack.v--;
+					System.out.println(pendingSubAttack.v + " pending subAttacks for Attack #" + attackNumber);
+					if(pendingSubAttack.v == 0) {
+						synchronized (pendingSubAttacks) {
+							pendingSubAttacks.remove(attackNumber);
+						}
+						pendingSubAttack.notify();
+					}
+				}
+				
+			}
 		} catch (JMSException e) {
-			// TODO Auto-generated catch block
 			e.printStackTrace();
-		}	
-		
+		}
+	}
+	private class EncapInt {
+		public int v = 0;
 	}
 	public static void main(String[] args) {
 		String host = (args.length < 1) ? "127.0.0.1" : args[0];
 		try {
 			//Create an instance and register a reference to master in registry with name "master"
 			Master mestre = new Master(host);
-			Master mestreref = (Master) UnicastRemoteObject.exportObject(mestre, 0);
+			Attacker mestreref = (Attacker) UnicastRemoteObject.exportObject(mestre, 0);
 			Registry registry = LocateRegistry.getRegistry(); // opcional: host
 			registry.rebind("mestre", mestreref);
 		    System.err.println("Master online");
@@ -93,5 +137,4 @@ public class Master implements Remote {
 
 	}
 	
-
 }

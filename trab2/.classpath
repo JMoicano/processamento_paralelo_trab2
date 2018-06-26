@@ -2,8 +2,8 @@
 <classpath>
 	<classpathentry kind="con" path="org.eclipse.jdt.launching.JRE_CONTAINER/org.eclipse.jdt.internal.debug.ui.launcher.StandardVMType/JavaSE-1.8"/>
 	<classpathentry kind="src" path="src"/>
-	<classpathentry kind="lib" path="C:/Users/JMoicano/Documents/Processamento Paralelo/glassfish5/glassfish/lib/appserv-rt.jar"/>
-	<classpathentry kind="lib" path="C:/Users/JMoicano/Documents/Processamento Paralelo/glassfish5/glassfish/lib/gf-client.jar"/>
-	<classpathentry kind="lib" path="C:/Users/JMoicano/Documents/Processamento Paralelo/glassfish5/glassfish/lib/javaee.jar"/>
+	<classpathentry kind="lib" path="/home/2012100265/git/processamento_paralelo_trab2/glassfish5/glassfish/lib/appserv-rt.jar"/>
+	<classpathentry kind="lib" path="/home/2012100265/git/processamento_paralelo_trab2/glassfish5/glassfish/lib/gf-client.jar"/>
+	<classpathentry kind="lib" path="/home/2012100265/git/processamento_paralelo_trab2/glassfish5/glassfish/lib/javaee.jar"/>
 	<classpathentry kind="output" path="bin"/>
 </classpath>

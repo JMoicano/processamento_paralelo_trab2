@@ -23,7 +23,7 @@ import br.inf.ufes.ppd.SubAttack;
 
 
 
-public class Slave extends ProducerConsumer implements MessageListener {
+public class Slave extends ProducerConsumer {//implements MessageListener {
 	private ArrayList<String> _dict; //dictionary words
 	private static class KPM {
 	    /**
@@ -94,7 +94,27 @@ public class Slave extends ProducerConsumer implements MessageListener {
 			e.printStackTrace();
 		}
 		
-		consumer.setMessageListener(this);
+//		consumer.setMessageListener(this);
+		
+		while(true) {
+			Message msg = consumer.receive();
+			try {
+			if(msg instanceof ObjectMessage) {
+				Object obj;
+					
+						obj = ((ObjectMessage) msg).getObject();
+					
+					if(obj instanceof SubAttack) {
+						SubAttack sa = (SubAttack) obj;
+						attack(sa.getCiphertext(), sa.getKnowntext(), sa.getInitialwordindex(), sa.getFinalwordindex(), sa.getAttackNumber());
+					}
+				
+				}
+			} catch (JMSException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
 
 	}
 	
@@ -138,23 +158,23 @@ public class Slave extends ProducerConsumer implements MessageListener {
 		}
 	}
 
-	@Override
-	public void onMessage(Message msg) {
-
-		try {
-			if(msg instanceof ObjectMessage) {
-				Object obj = ((ObjectMessage) msg).getObject();
-				if(obj instanceof SubAttack) {
-					SubAttack sa = (SubAttack) obj;
-					attack(sa.getCiphertext(), sa.getKnowntext(), sa.getInitialwordindex(), sa.getFinalwordindex(), sa.getAttackNumber());
-				}
-			
-			}
-		} catch (JMSException e) {
-			e.printStackTrace();
-		}
-		
-	}
+//	@Override
+//	public void onMessage(Message msg) {
+//
+//		try {
+//			if(msg instanceof ObjectMessage) {
+//				Object obj = ((ObjectMessage) msg).getObject();
+//				if(obj instanceof SubAttack) {
+//					SubAttack sa = (SubAttack) obj;
+//					attack(sa.getCiphertext(), sa.getKnowntext(), sa.getInitialwordindex(), sa.getFinalwordindex(), sa.getAttackNumber());
+//				}
+//			
+//			}
+//		} catch (JMSException e) {
+//			e.printStackTrace();
+//		}
+//		
+//	}
 	
 	public static void main(String[] args) {
 		String host = (args.length < 2) ? "127.0.0.1" : args[0];

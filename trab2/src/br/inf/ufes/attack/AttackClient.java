@@ -102,14 +102,18 @@ public class AttackClient {
 
 			int newAttackTimeSize = -1;
 			if (!optimize) {
-				for (int i = 100; i <= 40000; i+=300) {
-					startTime = System.nanoTime();
-					guesses = mestre.attack(criptedFile, knownWord.getBytes(), i);
-					double time_diff = (System.nanoTime() - startTime)/1000000;
-					System.out.println(i + ";" + time_diff + ";" + 	size);
-					for(Guess g : guesses) {
-						saveFile(g.getKey() + ".msg", g.getMessage());
-					}	
+				for (int i = 40000; i >= 100; i-=300) {
+					System.out.println("Attack size " + i);
+					for (int j = 0; j < 20; j++) {
+						startTime = System.nanoTime();
+						guesses = mestre.attack(criptedFile, knownWord.getBytes(), i);
+						double time_diff = (System.nanoTime() - startTime)/1000000;
+						System.out.println(j + ": " + i + ";" + time_diff + ";" + 	size);
+						for(Guess g : guesses) {
+							saveFile(g.getKey() + ".msg", g.getMessage());
+						}	
+					}
+						
 				}
 			} else {
 				// first run to min attack size

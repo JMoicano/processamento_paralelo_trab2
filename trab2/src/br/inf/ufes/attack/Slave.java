@@ -21,8 +21,61 @@ import br.inf.ufes.ppd.Guess;
 import br.inf.ufes.ppd.ProducerConsumer;
 import br.inf.ufes.ppd.SubAttack;
 
+
+
 public class Slave extends ProducerConsumer implements MessageListener {
 	private ArrayList<String> _dict; //dictionary words
+	private static class KPM {
+	    /**
+	     * Search the data byte array for the first occurrence of the byte array pattern within given boundaries.
+	     * @param data
+	     * @param start First index in data
+	     * @param stop Last index in data so that stop-start = length
+	     * @param pattern What is being searched. '*' can be used as wildcard for "ANY character"
+	     * @return
+	     */
+	    public static int indexOf( byte[] data, int start, int stop, byte[] pattern) {
+	        if( data == null || pattern == null) return -1;
+
+	        int[] failure = computeFailure(pattern);
+
+	        int j = 0;
+
+	        for( int i = start; i < stop; i++) {
+	            while (j > 0 && ( pattern[j] != '*' && pattern[j] != data[i])) {
+	                j = failure[j - 1];
+	            }
+	            if (pattern[j] == '*' || pattern[j] == data[i]) {
+	                j++;
+	            }
+	            if (j == pattern.length) {
+	                return i - pattern.length + 1;
+	            }
+	        }
+	        return -1;
+	    }
+
+	    /**
+	     * Computes the failure function using a boot-strapping process,
+	     * where the pattern is matched against itself.
+	     */
+	    private static int[] computeFailure(byte[] pattern) {
+	        int[] failure = new int[pattern.length];
+
+	        int j = 0;
+	        for (int i = 1; i < pattern.length; i++) {
+	            while (j>0 && pattern[j] != pattern[i]) {
+	                j = failure[j - 1];
+	            }
+	            if (pattern[j] == pattern[i]) {
+	                j++;
+	            }
+	            failure[i] = j;
+	        }
+
+	        return failure;
+	    }
+	}
 	
 	public Slave (String host, String dicPath) {
 		super(host);
@@ -61,8 +114,9 @@ public class Slave extends ProducerConsumer implements MessageListener {
 				byte[] message = ciphertext;
 	
 				byte[] decrypted = cipher.doFinal(message);
-				String decryptedStr = new String(decrypted);
-				if (decryptedStr.contains(known_text)) {
+
+				int found = KPM.indexOf(decrypted, 0, decrypted.length, knowntext);
+				if (found > 0) {
 					//if a candidate word was found send a message
 					ObjectMessage m = context.createObjectMessage();
 					m.setObject(new Guess(new String(key), decrypted));
